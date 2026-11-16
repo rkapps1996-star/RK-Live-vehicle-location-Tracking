@@ -1,32 +1,22 @@
-/* RK LIVE VEHICLE TRACKING — no-login, device-local edition */
+/* RK LIVE VEHICLE TRACKING — Supabase mobile auth + device-local tracking */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-const STORE = 'rk-live-vehicles-v5';
-const GPS_MODE_KEY = 'rk-live-gps-mode-v1';
-const GPS_DEVICE_KEY = 'rk-live-gps-device-v1';
-const REPORTS_KEY = 'rk-live-hourly-reports-v1';
+const AUTH_USER_KEY = 'rk-live-auth-user-id';
+const AUTH_PHONE_KEY = 'rk-live-auth-phone';
+const USER_SCOPE = localStorage.getItem(AUTH_USER_KEY) || 'guest';
+const STORE = `rk-live-vehicles-v5-${USER_SCOPE}`;
+const GPS_MODE_KEY = `rk-live-gps-mode-v1-${USER_SCOPE}`;
+const GPS_DEVICE_KEY = `rk-live-gps-device-v1-${USER_SCOPE}`;
+const REPORTS_KEY = `rk-live-hourly-reports-v1-${USER_SCOPE}`;
 const REPORT_INTERVAL_MS = 60 * 60 * 1000;
+
 let hourlyReports = readReports();
-let lastReportAt = Number(localStorage.getItem('rk-live-last-report-at') || 0);
+let lastReportAt = Number(localStorage.getItem(REPORTS_KEY + '-last-report-at') || 0);
 let vehicles = readVehicles();
 let watchId = null;
 let currentPosition = null;
 let lastMapUrl = '';
 let lastGeocodeAt = 0;
-
-// Shows the phone/browser internet state only; it does not test GPS or a server.
-function updateConnectionStatus(){
-  const badge = $('#connectionBadge');
-  if(!badge) return;
-  const online = navigator.onLine;
-  badge.textContent = online ? 'ONLINE' : 'OFFLINE';
-  badge.setAttribute('aria-label', online ? 'Internet connection available' : 'No internet connection');
-  badge.style.backgroundColor = online ? '#d1fae5' : '#fee2e2';
-  badge.style.color = online ? '#065f46' : '#991b1b';
-  badge.style.borderColor = online ? '#10b981' : '#ef4444';
-}
-window.addEventListener('online', updateConnectionStatus);
-window.addEventListener('offline', updateConnectionStatus);
 
 function readVehicles(){ try { const v=JSON.parse(localStorage.getItem(STORE)||'[]'); return Array.isArray(v)?v:[]; } catch { return []; } }
 function saveVehicles(){ localStorage.setItem(STORE, JSON.stringify(vehicles)); }
@@ -39,7 +29,7 @@ function saveHourlyReport(manual=false){
   const c=currentPosition.coords;
   const vehicle=$('#trackingVehicle').selectedOptions[0]?.textContent||'నా వాహనం';
   hourlyReports.unshift({id:now,vehicle,time:new Date(currentPosition.timestamp||now).toISOString(),latitude:c.latitude,longitude:c.longitude,accuracy:c.accuracy,mapUrl:`https://www.google.com/maps?q=${c.latitude},${c.longitude}`});
-  hourlyReports=hourlyReports.slice(0,1000); saveReports(); lastReportAt=now; localStorage.setItem('rk-live-last-report-at',String(now)); renderReports();
+  hourlyReports=hourlyReports.slice(0,1000); saveReports(); lastReportAt=now; localStorage.setItem(REPORTS_KEY+'-last-report-at',String(now)); renderReports();
   if(manual)toast('రిపోర్ట్ ఈ ఫోన్‌లో సేవ్ అయింది.');
 }
 function syncNativeReports(){
@@ -65,7 +55,7 @@ function exportReports(){
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='RK-hourly-vehicle-reports.csv';a.click();URL.revokeObjectURL(url);
 }
 
-function toast(message){ const el=$('#toast'); el.textContent=message; el.classList.add('show'); clearTimeout(toast.timer); toast.timer=setTimeout(()=>el.classList.remove('show'),3200); }
+function toast(message){ const el=$('#toast'); if(!el)return; el.textContent=message; el.classList.add('show'); clearTimeout(toast.timer); toast.timer=setTimeout(()=>el.classList.remove('show'),3200); }
 function escapeHtml(v){ return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function go(id){ $$('.panel').forEach(p=>p.classList.toggle('active',p.id===id)); $$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===id)); window.scrollTo({top:0,behavior:'smooth'}); }
 function getGpsMode(){return localStorage.getItem(GPS_MODE_KEY)||'mobile';}
@@ -121,7 +111,6 @@ function updateLocation(pos){
   $('#openViewerMapBtn').disabled=false;
   $('#viewerList').innerHTML='<div class="status">GPS లొకేషన్ ఈ ఫోన్‌లో మాత్రమే చూపబడుతోంది.</div>';
 }
-
 async function resolveLocationName(lat,lon){
   const now=Date.now(); if(now-lastGeocodeAt<15000)return; lastGeocodeAt=now;
   try{
@@ -138,7 +127,6 @@ $('#whatsappShareBtn').addEventListener('click',()=>{
   const message=`${vehicle} ప్రస్తుత లొకేషన్: ${lastMapUrl}\nఈ లింక్ ఈ సమయానికి సంబంధించిన లొకేషన్ మాత్రమే. నిరంతర Live Location కోసం WhatsAppలో Attach → Location → Share Live Location ఎంచుకోండి.`;
   window.open(`https://wa.me/?text=${encodeURIComponent(message)}`,'_blank','noopener,noreferrer');
 });
-
 $('#startTrackingBtn').addEventListener('click',()=>{
   if(!vehicles.length)return toast('ముందుగా వాహనం జోడించండి.');
   if(!navigator.geolocation)return toast('ఈ బ్రౌజర్ GPSకు మద్దతు ఇవ్వదు.');
@@ -163,5 +151,115 @@ syncNativeReports();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncNativeReports();});
 setInterval(()=>{if(watchId!==null&&currentPosition)saveHourlyReport(false);},60000);
 applyGpsMode();
-updateConnectionStatus();
 if('serviceWorker'in navigator&&location.protocol!=='file:')window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=9').catch(console.warn));
+
+/* Supabase authentication: phone OTP, phone/password, signup, password reset */
+const supaConfig = window.RK_CONFIG || {};
+const authClient = (window.supabase && supaConfig.SUPABASE_URL && supaConfig.SUPABASE_ANON_KEY)
+  ? window.supabase.createClient(supaConfig.SUPABASE_URL, supaConfig.SUPABASE_ANON_KEY)
+  : null;
+const loginPanel = $('#loginPanel');
+const appPanel = $('#appPanel');
+function authMessage(msg, isError=false){
+  const el=$('#loginMessage');
+  if(el){el.textContent=msg;el.style.color=isError?'#b42318':'#075e68';}
+}
+function getPhone(){return ($('#authPhone').value||'').replace(/[^\d+]/g,'');}
+function validPhone(phone){return /^\+[1-9]\d{7,14}$/.test(phone);}
+function requireAuthClient(){
+  if(!authClient){authMessage('Supabase config లేదా SDK లోపం. config.js మరియు ఇంటర్నెట్ తనిఖీ చేయండి.',true);return false;}
+  return true;
+}
+async function showAuthenticated(session){
+  const user=session.user;
+  const phone=user.phone || localStorage.getItem(AUTH_PHONE_KEY) || 'Mobile account';
+  const prior=localStorage.getItem(AUTH_USER_KEY);
+  localStorage.setItem(AUTH_PHONE_KEY,phone);
+  if(prior!==user.id){
+    localStorage.setItem(AUTH_USER_KEY,user.id);
+    location.reload();
+    return;
+  }
+  loginPanel.hidden=true;
+  appPanel.hidden=false;
+  $('#loggedInPhone').textContent=phone;
+  $('#accountPhone').textContent=phone;
+}
+async function initAuth(){
+  if(!requireAuthClient()){
+    loginPanel.hidden=false; appPanel.hidden=true; return;
+  }
+  try{
+    const {data,error}=await authClient.auth.getSession();
+    if(error)throw error;
+    if(data.session)await showAuthenticated(data.session);
+    else{loginPanel.hidden=false;appPanel.hidden=true;}
+    authClient.auth.onAuthStateChange((_event,session)=>{
+      if(session)showAuthenticated(session);
+      else{
+        localStorage.removeItem(AUTH_USER_KEY);
+        localStorage.removeItem(AUTH_PHONE_KEY);
+        loginPanel.hidden=false;appPanel.hidden=true;
+      }
+    });
+  }catch(e){loginPanel.hidden=false;appPanel.hidden=true;authMessage(e.message||'Login status పొందలేకపోయాం.',true);}
+}
+$('#sendOtpBtn').addEventListener('click',async()=>{
+  if(!requireAuthClient())return;
+  const phone=getPhone(); if(!validPhone(phone))return authMessage('దేశ కోడ్‌తో సరైన మొబైల్ నంబర్ ఇవ్వండి. ఉదా: +919876543210',true);
+  authMessage('OTP పంపుతోంది…');
+  const {error}=await authClient.auth.signInWithOtp({phone,options:{shouldCreateUser:true}});
+  authMessage(error?error.message:'SMS OTP పంపబడింది. SMS లో వచ్చిన OTP నమోదు చేసి Verify నొక్కండి.',!!error);
+});
+$('#verifyOtpBtn').addEventListener('click',async()=>{
+  if(!requireAuthClient())return;
+  const phone=getPhone(),token=$('#authOtp').value.trim();
+  if(!validPhone(phone)||!token)return authMessage('మొబైల్ నంబర్ మరియు OTP నమోదు చేయండి.',true);
+  authMessage('OTP తనిఖీ చేస్తోంది…');
+  const {data,error}=await authClient.auth.verifyOtp({phone,token,type:'sms'});
+  if(error)return authMessage(error.message,true);
+  if(data.session)await showAuthenticated(data.session);
+});
+$('#passwordLoginBtn').addEventListener('click',async()=>{
+  if(!requireAuthClient())return;
+  const phone=getPhone(),password=$('#authPassword').value;
+  if(!validPhone(phone)||!password)return authMessage('దేశ కోడ్‌తో మొబైల్ నంబర్ మరియు Password నమోదు చేయండి.',true);
+  authMessage('Login అవుతోంది…');
+  const {data,error}=await authClient.auth.signInWithPassword({phone,password});
+  if(error)return authMessage(error.message,true);
+  if(data.session)await showAuthenticated(data.session);
+});
+$('#signupBtn').addEventListener('click',async()=>{
+  if(!requireAuthClient())return;
+  const phone=getPhone(),password=$('#authPassword').value;
+  if(!validPhone(phone)||password.length<8)return authMessage('సరైన మొబైల్ నంబర్ మరియు కనీసం 8 అక్షరాల Password ఇవ్వండి.',true);
+  authMessage('Account సృష్టిస్తోంది…');
+  const {data,error}=await authClient.auth.signUp({phone,password});
+  if(error)return authMessage(error.message,true);
+  if(data.session)await showAuthenticated(data.session);
+  else authMessage('Account ప్రారంభించబడింది. SMS OTP అందితే నమోదు చేసి OTP Verify నొక్కండి.');
+});
+$('#resetOtpBtn').addEventListener('click',async()=>{
+  if(!requireAuthClient())return;
+  const phone=getPhone(); if(!validPhone(phone))return authMessage('దేశ కోడ్‌తో మొబైల్ నంబర్ ఇవ్వండి.',true);
+  authMessage('Password reset OTP పంపుతోంది…');
+  const {error}=await authClient.auth.signInWithOtp({phone,options:{shouldCreateUser:false}});
+  authMessage(error?error.message:'OTP పంపబడింది. OTP నమోదు చేసి Verify నొక్కండి; తర్వాత కొత్త Password సెట్ చేయండి.',!!error);
+});
+$('#resetPasswordBtn').addEventListener('click',async()=>{
+  if(!requireAuthClient())return;
+  const password=$('#authPassword').value;
+  if(password.length<8)return authMessage('కొత్త Password కనీసం 8 అక్షరాలు ఉండాలి.',true);
+  const {data}=await authClient.auth.getSession();
+  if(!data.session)return authMessage('ముందుగా Password reset OTP పంపి, OTP Verify చేయండి.',true);
+  const {error}=await authClient.auth.updateUser({password});
+  authMessage(error?error.message:'కొత్త Password సేవ్ అయింది. ఇప్పుడు Password Login ఉపయోగించవచ్చు.',!!error);
+});
+$('#logoutBtn').addEventListener('click',async()=>{
+  if(!authClient)return;
+  stopTracking(false);
+  const {error}=await authClient.auth.signOut();
+  if(error)toast('Logout సమస్య: '+error.message);
+  else{localStorage.removeItem(AUTH_USER_KEY);localStorage.removeItem(AUTH_PHONE_KEY);location.reload();}
+});
+initAuth();

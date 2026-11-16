@@ -9,11 +9,24 @@
 <link rel="icon" href="./icon.svg" type="image/svg+xml">
 <title>RK LIVE VEHICLE TRACKING</title>
 <link rel="stylesheet" href="./styles.css">
+<style>
+#loginPanel{max-width:520px;margin:22px auto;padding:20px;background:#fff;border:1px solid #dce8e9;border-radius:18px;box-shadow:0 8px 28px #063b4210}
+#loginPanel h2{margin:0 0 6px;color:#075e68}
+#loginPanel .login-note{font-size:13px;color:#607477;line-height:1.5}
+#loginPanel label{display:block;margin:14px 0 6px;font-weight:600}
+#loginPanel input{display:block;width:100%;box-sizing:border-box;padding:13px;border:1px solid #cbdadb;border-radius:10px;font:inherit}
+#loginPanel .login-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+#loginPanel button{border:0;border-radius:10px;padding:12px;font:inherit;font-weight:700;cursor:pointer;background:#087e8b;color:#fff}
+#loginPanel button.secondary-login{background:#e8f3f4;color:#075e68}
+#loginMessage{min-height:22px;margin-top:12px;font-size:13px;color:#075e68}
+#logoutBtn{margin:12px 0}
+[hidden]{display:none!important}
+</style>
 </head>
 <body>
 <header class="top">
   <div class="brand"><div class="mark">RK<span>⌖</span></div><div><b>RK LIVE</b><small>VEHICLE TRACKING</small></div></div>
-  <span class="pill" id="connectionBadge" role="status" aria-live="polite">CHECKING...</span>
+  <span class="pill" id="connectionBadge">CHECKING...</span>
 </header>
 <main>
   <section class="hero">
@@ -22,10 +35,31 @@
     <div class="hero-icon" aria-hidden="true">🚘<span>📍</span></div>
   </section>
 
-  <div class="notice"><b>భద్రత & అనుమతి</b> — లొకేషన్ షేరింగ్‌ను వాహన యజమాని స్వయంగా ప్రారంభించి ఎప్పుడైనా ఆపవచ్చు. ట్రాకింగ్ నడవాలంటే యాప్ తెరిచి ఉండాలి; ఈ వెబ్ యాప్ బ్యాక్‌గ్రౌండ్‌లో నిరంతర GPSను హామీ ఇవ్వదు.</div>
+  <section id="loginPanel" hidden>
+    <h2>RK LIVE — Mobile Login</h2>
+    <p class="login-note">మీ మొబైల్ నంబర్‌తో OTP లేదా Password ద్వారా లాగిన్ అవ్వండి. భారతదేశ నంబర్ అయితే +91 తో నమోదు చేయండి.</p>
+    <label for="authPhone">Mobile Number</label>
+    <input id="authPhone" type="tel" autocomplete="tel" placeholder="+919876543210">
+    <label for="authPassword">Password (Password login / signup కోసం)</label>
+    <input id="authPassword" type="password" autocomplete="current-password" placeholder="కనీసం 8 అక్షరాలు" minlength="8">
+    <label for="authOtp">SMS OTP</label>
+    <input id="authOtp" inputmode="numeric" autocomplete="one-time-code" placeholder="OTP నమోదు చేయండి">
+    <div class="login-actions">
+      <button id="sendOtpBtn" type="button">OTP పంపు</button>
+      <button id="verifyOtpBtn" type="button" class="secondary-login">OTP Verify</button>
+      <button id="passwordLoginBtn" type="button">Password Login</button>
+      <button id="signupBtn" type="button" class="secondary-login">Create Account</button>
+      <button id="resetOtpBtn" type="button" class="secondary-login">Forgot Password OTP</button>
+      <button id="resetPasswordBtn" type="button">Set New Password</button>
+    </div>
+    <div id="loginMessage" role="status" aria-live="polite"></div>
+    <p class="login-note">OTP/SMS పనిచేయడానికి Supabase Phone Auth మరియు SMS Provider సెటప్ అవసరం. SMS ఖర్చులు provider ప్రకారం ఉండవచ్చు.</p>
+  </section>
 
-  <section id="appPanel">
-    <div class="notice"><b>లాగిన్ అవసరం లేదు</b> — ఈ ఫోన్‌లోనే వాహన వివరాలు సేవ్ అవుతాయి. క్లౌడ్ సింక్ / ఇతర ఫోన్లకు లైవ్ షేరింగ్ ఉండదు.</div>
+  <section id="appPanel" hidden>
+    <div class="notice"><b>భద్రత & అనుమతి</b> — లొకేషన్ షేరింగ్‌ను వాహన యజమాని స్వయంగా ప్రారంభించి ఎప్పుడైనా ఆపవచ్చు. ట్రాకింగ్ నడవాలంటే యాప్ తెరిచి ఉండాలి; ఈ వెబ్ యాప్ బ్యాక్‌గ్రౌండ్‌లో నిరంతర GPSను హామీ ఇవ్వదు.</div>
+    <div class="notice"><b>లాగిన్ అవసరం</b> — వాహన వివరాలు ఈ యూజర్ అకౌంట్‌కు చెందిన ఈ ఫోన్ బ్రౌజర్‌లో సేవ్ అవుతాయి. ఇతర ఫోన్లకు క్లౌడ్ లైవ్ షేరింగ్ ఈ వెర్షన్‌లో లేదు.</div>
+    <div class="status">Logged in: <b id="loggedInPhone">—</b> <button id="logoutBtn" class="btn secondary" type="button">Logout</button></div>
     <nav class="tabs" aria-label="ప్రధాన విభాగాలు">
       <button class="tab active" data-tab="dashboard">డ్యాష్‌బోర్డ్</button>
       <button class="tab" data-tab="garage">వాహనాలు</button>
@@ -124,8 +158,8 @@
     <section id="account" class="panel">
       <div class="section-head"><div><p class="eyebrow">ACCOUNT</p><h2>అకౌంట్ & డేటా</h2></div></div>
       <article class="card">
-        <p class="muted">అకౌంట్ / లాగిన్ లేదు</p><b>ఈ ఫోన్‌లో స్థానికంగా సేవ్ అవుతుంది</b>
-        <p class="muted tiny">వాహన వివరాలు ఈ బ్రౌజర్‌లో మాత్రమే ఉంటాయి. బ్రౌజర్ డేటా తొలగిస్తే వాహనాల జాబితా కూడా తొలగిపోవచ్చు.</p>
+        <p class="muted">Mobile account</p><b id="accountPhone">—</b>
+        <p class="muted tiny">వాహన వివరాలు ఈ బ్రౌజర్‌లో ఈ యూజర్ అకౌంట్‌కు వేరుగా సేవ్ అవుతాయి.</p>
       </article>
       <article class="card plan"><p class="eyebrow">PLANNED SUBSCRIPTION</p><h2>₹99 <small>/ నెల</small></h2><b>Unlimited Vehicle Tracking</b><p class="muted tiny">ఇది ధర నమూనా మాత్రమే. పేమెంట్ గేట్‌వే ఇంకా కనెక్ట్ కాలేదు.</p></article>
       <a class="btn primary linkbtn" href="https://echallan.parivahan.gov.in/" target="_blank" rel="noopener noreferrer">అధికారిక eChallan తెరవండి ↗</a>
@@ -135,6 +169,8 @@
   <footer>RK LIVE VEHICLE TRACKING <span>•</span> Consent first</footer>
 </main>
 <div id="toast" role="status" aria-live="polite"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./config.js"></script>
 <script src="./app.js?v=9"></script>
 </body>
 </html>
