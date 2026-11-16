@@ -13,7 +13,7 @@
 <body>
 <header class="top">
   <div class="brand"><div class="mark">RK<span>⌖</span></div><div><b>RK LIVE</b><small>VEHICLE TRACKING</small></div></div>
-  <span class="pill" id="connectionBadge">NOT CONNECTED</span>
+  <span class="pill" id="connectionBadge" role="status" aria-live="polite">CHECKING...</span>
 </header>
 <main>
   <section class="hero">
@@ -30,6 +30,7 @@
       <button class="tab active" data-tab="dashboard">డ్యాష్‌బోర్డ్</button>
       <button class="tab" data-tab="garage">వాహనాలు</button>
       <button class="tab" data-tab="track">లైవ్ ట్రాకింగ్</button>
+      <button class="tab" data-tab="challan">చలాన్</button>
       <button class="tab" data-tab="account">అకౌంట్</button>
     </nav>
 
@@ -109,6 +110,17 @@
       </article>
     </section>
 
+    <section id="challan" class="panel">
+      <div class="section-head"><div><p class="eyebrow">TRAFFIC E-CHALLAN</p><h2>చలాన్ వివరాలు</h2></div></div>
+      <article class="card form">
+        <h3>మీ వాహన చలాన్ చెక్ చేయండి</h3>
+        <p class="muted">ప్రభుత్వ అధికారిక eChallan పోర్టల్‌లో మీ వాహనానికి సంబంధించిన పెండింగ్ చలాన్లు చూడవచ్చు. వివరాలు అక్కడే నమోదు చేయండి.</p>
+        <a class="btn primary linkbtn" href="https://echallan.parivahan.gov.in/" target="_blank" rel="noopener noreferrer">చలాన్ చెక్ చేయండి ↗</a>
+        <div class="status"><b>ఎలా చెక్ చేయాలి?</b><br>1. పై బటన్ నొక్కండి.<br>2. అధికారిక వెబ్‌సైట్‌లో Check Challan Details ఎంచుకోండి.<br>3. వాహన నంబర్ లేదా అడిగిన వివరాలు నమోదు చేయండి.<br>4. Captcha పూర్తి చేసి Get Details నొక్కండి.</div>
+        <p class="muted tiny">గమనిక: చలాన్ సమాచారం ప్రభుత్వ పోర్టల్ నుంచే వస్తుంది. ఈ యాప్ మీ చలాన్ డేటాను నిల్వ చేయదు; చెల్లింపులు కూడా అధికారిక పోర్టల్‌లోనే చేయండి.</p>
+      </article>
+    </section>
+
     <section id="account" class="panel">
       <div class="section-head"><div><p class="eyebrow">ACCOUNT</p><h2>అకౌంట్ & డేటా</h2></div></div>
       <article class="card">
@@ -123,6 +135,6 @@
   <footer>RK LIVE VEHICLE TRACKING <span>•</span> Consent first</footer>
 </main>
 <div id="toast" role="status" aria-live="polite"></div>
-<script src="./app.js?v=8"></script>
+<script src="./app.js?v=9"></script>
 </body>
 </html>

@@ -14,6 +14,20 @@ let currentPosition = null;
 let lastMapUrl = '';
 let lastGeocodeAt = 0;
 
+// Shows the phone/browser internet state only; it does not test GPS or a server.
+function updateConnectionStatus(){
+  const badge = $('#connectionBadge');
+  if(!badge) return;
+  const online = navigator.onLine;
+  badge.textContent = online ? 'ONLINE' : 'OFFLINE';
+  badge.setAttribute('aria-label', online ? 'Internet connection available' : 'No internet connection');
+  badge.style.backgroundColor = online ? '#d1fae5' : '#fee2e2';
+  badge.style.color = online ? '#065f46' : '#991b1b';
+  badge.style.borderColor = online ? '#10b981' : '#ef4444';
+}
+window.addEventListener('online', updateConnectionStatus);
+window.addEventListener('offline', updateConnectionStatus);
+
 function readVehicles(){ try { const v=JSON.parse(localStorage.getItem(STORE)||'[]'); return Array.isArray(v)?v:[]; } catch { return []; } }
 function saveVehicles(){ localStorage.setItem(STORE, JSON.stringify(vehicles)); }
 function readReports(){try{const r=JSON.parse(localStorage.getItem(REPORTS_KEY)||'[]');return Array.isArray(r)?r:[];}catch{return [];}}
@@ -28,6 +42,17 @@ function saveHourlyReport(manual=false){
   hourlyReports=hourlyReports.slice(0,1000); saveReports(); lastReportAt=now; localStorage.setItem('rk-live-last-report-at',String(now)); renderReports();
   if(manual)toast('రిపోర్ట్ ఈ ఫోన్‌లో సేవ్ అయింది.');
 }
+function syncNativeReports(){
+  try{
+    if(!window.Android || !Android.getHourlyReports)return;
+    const nativeRows=JSON.parse(Android.getHourlyReports()||'[]');
+    if(!Array.isArray(nativeRows))return;
+    const merged=new Map();
+    [...hourlyReports,...nativeRows].forEach(r=>merged.set(String(r.id),r));
+    hourlyReports=[...merged.values()].sort((a,b)=>Number(b.id)-Number(a.id)).slice(0,1000);
+    saveReports(); renderReports();
+  }catch(e){console.warn('Native report sync failed',e);}
+}
 function renderReports(){
   const el=$('#hourlyReportList'); if(!el)return;
   $('#reportCount').textContent=hourlyReports.length;
@@ -36,8 +61,7 @@ function renderReports(){
 function exportReports(){
   if(!hourlyReports.length)return toast('ఎగుమతి చేయడానికి రిపోర్టులు లేవు.');
   const rows=[['Vehicle','DateTime','Latitude','Longitude','Accuracy_m','Map_URL'],...hourlyReports.map(r=>[r.vehicle,r.time,r.latitude,r.longitude,r.accuracy,r.mapUrl])];
-  const csv='\\uFEFF'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\\r\
-');
+  const csv='\uFEFF'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='RK-hourly-vehicle-reports.csv';a.click();URL.revokeObjectURL(url);
 }
 
@@ -120,9 +144,10 @@ $('#startTrackingBtn').addEventListener('click',()=>{
   if(!navigator.geolocation)return toast('ఈ బ్రౌజర్ GPSకు మద్దతు ఇవ్వదు.');
   if(!confirm('మీ ఫోన్ GPS లొకేషన్‌ను ఎంచుకున్న వాహనంతో లింక్ చేయడానికి అంగీకరిస్తున్నారా? లొకేషన్ ఈ ఫోన్‌లో మాత్రమే ఉంటుంది.'))return;
   $('#ownerTrackingStatus').textContent='GPS అనుమతి కోసం వేచి ఉంది…';
+  if(window.Android && Android.startTracking){const vehicle=$('#trackingVehicle').selectedOptions[0]?.textContent||'నా వాహనం';Android.startTracking(vehicle);}
   watchId=navigator.geolocation.watchPosition(pos=>{updateLocation(pos);$('#ownerTrackingStatus').textContent='GPS ON • లొకేషన్ ఈ ఫోన్‌లో మాత్రమే సేవ్ / చూపబడుతుంది.';$('#stopTrackingBtn').disabled=false;renderVehicles();},err=>{watchId=null;$('#ownerTrackingStatus').textContent='GPS సమస్య: '+err.message;renderVehicles();toast('ఫోన్ సెట్టింగ్స్‌లో Location ON చేసి అనుమతి ఇవ్వండి.');},{enableHighAccuracy:true,maximumAge:3000,timeout:20000});
 });
-function stopTracking(show=true){ if(watchId!==null&&navigator.geolocation)navigator.geolocation.clearWatch(watchId); watchId=null; $('#whatsappShareBtn').disabled=true; $('#stopTrackingBtn').disabled=true; $('#startTrackingBtn').disabled=!vehicles.length; $('#ownerTrackingStatus').textContent='షేరింగ్ ఆఫ్‌లో ఉంది.'; renderVehicles(); if(show)toast('GPS ట్రాకింగ్ ఆపబడింది.'); }
+function stopTracking(show=true){ if(window.Android && Android.stopTracking)Android.stopTracking(); if(watchId!==null&&navigator.geolocation)navigator.geolocation.clearWatch(watchId); watchId=null; $('#whatsappShareBtn').disabled=true; $('#stopTrackingBtn').disabled=true; $('#startTrackingBtn').disabled=!vehicles.length; $('#ownerTrackingStatus').textContent='షేరింగ్ ఆఫ్‌లో ఉంది.'; renderVehicles(); if(show)toast('GPS ట్రాకింగ్ ఆపబడింది.'); }
 $('#stopTrackingBtn').addEventListener('click',()=>stopTracking(true));
 $('#saveReportBtn')?.addEventListener('click',()=>saveHourlyReport(true));
 $('#exportReportsBtn')?.addEventListener('click',exportReports);
@@ -134,6 +159,9 @@ $('#openViewerMapBtn').addEventListener('click',()=>{if(lastMapUrl)window.open(l
 $('#clearBtn')?.addEventListener('click',()=>{if(!confirm('ఈ ఫోన్‌లో సేవ్ చేసిన అన్ని వాహన వివరాలను తొలగించాలా?'))return;stopTracking(false);vehicles=[];saveVehicles();renderVehicles();toast('ఈ ఫోన్‌లోని డేటా తొలగించబడింది.');});
 renderVehicles();
 renderReports();
+syncNativeReports();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncNativeReports();});
 setInterval(()=>{if(watchId!==null&&currentPosition)saveHourlyReport(false);},60000);
 applyGpsMode();
-if('serviceWorker'in navigator&&location.protocol!=='file:')window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=7').catch(console.warn));
+updateConnectionStatus();
+if('serviceWorker'in navigator&&location.protocol!=='file:')window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=9').catch(console.warn));
