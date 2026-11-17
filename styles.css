@@ -26,3 +26,6 @@ footer{text-align:center;color:#8197a5;font-size:10px;letter-spacing:1px;padding
 
 /* GPS source selection */
 .gps-options{display:grid;gap:9px}.gps-option{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:13px;padding:13px;background:#fbfdfe;cursor:pointer}.gps-option:has(input:checked){border-color:var(--green);background:#f0fbf6;box-shadow:0 0 0 2px #13a87918}.gps-option input{width:18px;height:18px;margin:0;accent-color:var(--green);flex:0 0 auto}.gps-option span{display:grid;gap:3px}.gps-option b{font-size:13px;color:var(--ink)}.gps-option small{font-size:11px;color:var(--muted);font-weight:500}.device-settings{display:grid;gap:12px;padding:14px;border:1px solid var(--line);border-radius:13px;background:#f8fbfd}.device-settings h3{margin:0}.device-settings .status{background:#fff4df;color:#765719}
+
+/* Latest vehicle location card */
+.map-card{overflow:hidden}.map-card .map-placeholder{border:1px solid var(--line)}.map-card .card-bottom{flex-wrap:wrap}
